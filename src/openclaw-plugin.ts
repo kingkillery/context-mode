@@ -292,7 +292,26 @@ export default {
       },
     );
 
-    // ── 4. before_prompt_build — Routing instruction injection ──
+    // ── 4. session_start — Re-key DB session to OpenClaw's session ID ─
+
+    api.on(
+      "session_start",
+      async (event: unknown) => {
+        try {
+          const e = event as SessionStartEvent;
+          if (e?.sessionId && e.sessionId !== sessionId) {
+            const sid = e.sessionId as ReturnType<typeof randomUUID>;
+            db.ensureSession(sid, projectDir);
+            sessionId = sid;
+          }
+          resumeInjected = false;
+        } catch {
+          // best effort — never break session start
+        }
+      },
+    );
+
+    // ── 5. before_prompt_build — Routing instruction injection ──
 
     if (routingInstructions) {
       api.on(
@@ -304,7 +323,7 @@ export default {
       );
     }
 
-    // ── 5. Context engine — Compaction management ──────────
+    // ── 6. Context engine — Compaction management ──────────
 
     api.registerContextEngine("context-mode", () => ({
       info: {
@@ -341,7 +360,7 @@ export default {
       },
     }));
 
-    // ── 6. Auto-reply commands — ctx slash commands ───────
+    // ── 7. Auto-reply commands — ctx slash commands ───────
 
     if (api.registerCommand) {
       api.registerCommand({
