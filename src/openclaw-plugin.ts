@@ -86,6 +86,8 @@ interface OpenClawPluginApi {
   logger?: {
     info: (...args: unknown[]) => void;
     error: (...args: unknown[]) => void;
+    debug?: (...args: unknown[]) => void;
+    warn?: (...args: unknown[]) => void;
   };
 }
 
@@ -188,6 +190,16 @@ export default {
     const buildDir = dirname(fileURLToPath(import.meta.url));
     const projectDir = process.env.OPENCLAW_PROJECT_DIR || process.cwd();
     const pluginRoot = resolve(buildDir, "..");
+
+    // Structured logger — wraps api.logger, falls back to no-op.
+    // info/error always emit; debug only when api.logger.debug is present
+    // (i.e. OpenClaw running with --log-level debug or lower).
+    const log = {
+      info: (...args: unknown[]) => api.logger?.info("[context-mode]", ...args),
+      error: (...args: unknown[]) => api.logger?.error("[context-mode]", ...args),
+      debug: (...args: unknown[]) => api.logger?.debug?.("[context-mode]", ...args),
+      warn: (...args: unknown[]) => api.logger?.warn?.("[context-mode]", ...args),
+    };
 
     // Initialize session synchronously (SessionDB constructor is sync)
     const db = new SessionDB({ dbPath: getDBPath(projectDir) });
@@ -314,6 +326,7 @@ export default {
             for (const ev of events) {
               db.insertEvent(sessionId, ev as SessionEvent, "PostToolUse");
             }
+            log.debug(`tool_call:after [${mappedToolName}] → ${events.length} event(s) captured`);
           } else if (rawToolName) {
             // Fallback: record any unrecognized tool call as a generic event
             const data = JSON.stringify({
@@ -335,6 +348,7 @@ export default {
               },
               "PostToolUse",
             );
+            log.debug(`tool_call:after [${rawToolName}] → generic fallback event captured`);
           }
         } catch {
           // Silent — session capture must never break the tool call
@@ -408,6 +422,7 @@ export default {
             const sid = e.sessionId as ReturnType<typeof randomUUID>;
             db.ensureSession(sid, projectDir);
             sessionId = sid;
+            log.info(`session re-keyed → ${sid.slice(0, 8)}…`);
           }
           resumeInjected = false;
         } catch {
@@ -479,6 +494,7 @@ export default {
           const freshStats = db.getSessionStats(sessionId);
           if ((freshStats?.compact_count ?? 0) === 0) return undefined;
           resumeInjected = true;
+          log.debug(`before_prompt_build: injecting resume snapshot (${resume.snapshot.length} chars)`);
           return { prependSystemContext: resume.snapshot };
         } catch {
           return undefined;
