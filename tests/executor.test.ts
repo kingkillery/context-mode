@@ -362,7 +362,7 @@ describe("Shell Execution", () => {
       code: 'printf "banana\\napple\\ncherry" | sort',
     });
     assert.equal(r.exitCode, 0);
-    const lines = r.stdout.trim().split("\n");
+    const lines = r.stdout.trim().split(/\r?\n/);
     assert.equal(lines[0], "apple");
     assert.equal(lines[1], "banana");
     assert.equal(lines[2], "cherry");
@@ -1473,4 +1473,3 @@ describe("Windows Shell Support", () => {
     assert.equal(cmd[1], "/tmp/script.sh");
   });
 });
-

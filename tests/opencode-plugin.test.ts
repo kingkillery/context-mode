@@ -32,7 +32,7 @@ async function createTestPlugin(tempDir: string) {
 // ── Tests ─────────────────────────────────────────────────
 
 // MCP readiness sentinel — routing.mjs checks process.ppid in-process
-const mcpSentinel = resolve(tmpdir(), `context-mode-mcp-ready-${process.ppid}`);
+const mcpSentinel = resolve(tmpdir(), `context-mode-mcp-ready-${process.pid}`);
 
 beforeEach(() => { writeFileSync(mcpSentinel, String(process.pid)); });
 afterEach(() => { try { unlinkSync(mcpSentinel); } catch {} });

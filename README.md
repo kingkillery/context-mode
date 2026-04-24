@@ -35,9 +35,9 @@ Every MCP tool call dumps raw data into your context window. A Playwright snapsh
 
 Context Mode is an MCP server that solves all three sides of this problem:
 
-1. **Context Saving** — Sandbox tools keep raw data out of the context window. 315 KB becomes 5.4 KB. 98% reduction.
-2. **Session Continuity** — Every file edit, git operation, task, error, and user decision is tracked in SQLite. When the conversation compacts, context-mode doesn't dump this data back into context — it indexes events into FTS5 and retrieves only what's relevant via BM25 search. The model picks up exactly where you left off. If you don't `--continue`, previous session data is deleted immediately — a fresh session means a clean slate.
-3. **Think in Code** — The LLM should program the analysis, not compute it. Instead of reading 50 files into context to count functions, the agent writes a script that does the counting and `console.log()`s only the result. One script replaces ten tool calls and saves 100x context. This is a mandatory paradigm across all 12 platforms: stop treating the LLM as a data processor, treat it as a code generator.
+1. **Context Saving** — Sandbox tools keep large raw outputs out of the context window. In the benchmark fixture set, 315 KB becomes 5.5 KB for structured-output scenarios (98% reduction).
+2. **Session Continuity** — On hook-capable platforms, file edits, git operations, tasks, errors, and user decisions are tracked in SQLite. When the conversation compacts, context-mode indexes events into FTS5 and retrieves relevant state via BM25 search. Coverage varies by platform; MCP-only and partial-hook clients still get the sandbox tools but not full restore.
+3. **Think in Code** — The LLM should program the analysis, not compute it. Instead of reading 50 files into context to count functions, the agent writes a script that does the counting and `console.log()`s only the result. One script replaces ten tool calls and can save 100x context on large outputs. This pattern is available wherever the MCP tools are installed.
 
 <a href="https://www.youtube.com/watch?v=QUHrntlfPo4">
   <picture>
@@ -712,12 +712,12 @@ npm install -g context-mode
 
 | Tool | What it does | Context saved |
 |---|---|---|
-| `ctx_batch_execute` | Run multiple commands + search multiple queries in ONE call. | 986 KB → 62 KB |
+| `ctx_batch_execute` | Run multiple commands + search multiple queries in ONE call. | Large command output → targeted search results |
 | `ctx_execute` | Run code in 11 languages. Only stdout enters context. | 56 KB → 299 B |
 | `ctx_execute_file` | Process files in sandbox. Raw content never leaves. | 45 KB → 155 B |
-| `ctx_index` | Chunk markdown into FTS5 with BM25 ranking. | 60 KB → 40 B |
+| `ctx_index` | Chunk markdown into FTS5 with BM25 ranking. | Raw source → indexed pointer + on-demand results |
 | `ctx_search` | Query indexed content with multiple queries in one call. | On-demand retrieval |
-| `ctx_fetch_and_index` | Fetch URL, chunk and index. 24h TTL cache — repeat calls skip network. `force: true` to bypass. | 60 KB → 40 B |
+| `ctx_fetch_and_index` | Fetch URL, chunk and index. 24h TTL cache — repeat calls skip network. `force: true` to bypass. | Fresh fetch returns a short preview; cached fetch returns a pointer |
 | `ctx_stats` | Show context savings, call counts, and session statistics. | — |
 | `ctx_doctor` | Diagnose installation: runtimes, hooks, FTS5, versions. | — |
 | `ctx_upgrade` | Upgrade to latest version from GitHub, rebuild, reconfigure hooks. | — |
@@ -762,7 +762,7 @@ Search results use intelligent extraction instead of truncation. Instead of retu
 
 ### TTL Cache
 
-Indexed content persists in a per-project SQLite database at `~/.context-mode/content/`. When `ctx_fetch_and_index` is called for a URL that was already indexed within the last 24 hours, the fetch is skipped entirely. The model searches the existing index directly.
+Indexed content persists in a per-project SQLite database under the detected platform's context-mode directory, such as `~/.claude/context-mode/content/`, `~/.cursor/context-mode/content/`, or another adapter-specific equivalent. Older `~/.context-mode/content/` stores are treated as legacy cleanup targets. When `ctx_fetch_and_index` is called for a URL that was already indexed within the last 24 hours, the fetch is skipped entirely. The model searches the existing index directly.
 
 - **Fresh (<24h):** Returns a cache hint (0.3KB) instead of re-fetching (48KB+). Model proceeds to `ctx_search`.
 - **Stale (>24h):** Re-fetches silently. No user action needed.
@@ -796,7 +796,7 @@ Session continuity requires 4 hooks working together:
 | **SessionStart** | Restores state after compaction or resume | Yes | Yes | Yes | -- | -- | -- | Plugin | Yes | -- | -- | -- | ✓ (via session_start event) |
 | | **Session completeness** | **Full** | **High** | **High** | **Partial** | **High** | **High** | **High** | **Partial** | **--** | **Partial** | **--** | **High** |
 
-> **Note:** Full session continuity (capture + snapshot + restore) works on **Claude Code**, **Gemini CLI**, and **VS Code Copilot**. **OpenCode** provides **high** session continuity: it captures tool events and injects compaction snapshots via the plugin, but SessionStart is not yet available ([#14808](https://github.com/sst/opencode/issues/14808)), so startup/resume restore is not supported. **KiloCode** shares the same plugin architecture as OpenCode via the OpenCodeAdapter, so its continuity level depends on KiloCode's SessionStart support. **Cursor** captures tool events via `preToolUse`/`postToolUse`, but `sessionStart` is currently rejected by Cursor's validator ([forum report](https://forum.cursor.com/t/unknown-hook-type-sessionstart/149566)), so session restore after compaction is not available yet. **OpenClaw** uses native gateway plugin hooks (`api.on()`) for full session continuity. **Pi Coding Agent** provides high session continuity via extension hooks (`tool_call`, `tool_result`, `session_start`, `session_before_compact`). **Codex CLI** hook-based session tracking is ready but waiting for upstream hook dispatch (codex_hooks Stage::UnderDevelopment, [openai/codex#16685](https://github.com/openai/codex/issues/16685)). MCP tools work. Once dispatch is enabled, session tracking will activate automatically. **Antigravity**, **Kiro**, and **Zed** have no hook support in the current release, so session tracking is not available.
+> **Note:** Full session continuity (capture + snapshot + restore) works on **Claude Code**, **Gemini CLI**, and **VS Code Copilot**. **OpenCode** provides **high** session continuity: it captures tool events and injects compaction snapshots via the plugin, but SessionStart is not yet available ([#14808](https://github.com/sst/opencode/issues/14808)), so startup/resume restore is not supported. **KiloCode** shares the same plugin architecture as OpenCode via the OpenCodeAdapter, so its continuity level depends on KiloCode's SessionStart support. **Cursor** captures tool events via `preToolUse`/`postToolUse`, but `sessionStart` is currently rejected by Cursor's validator ([forum report](https://forum.cursor.com/t/unknown-hook-type-sessionstart/149566)), so session restore after compaction is not available yet. **OpenClaw** uses native gateway plugin hooks (`api.on()`) for full session continuity. **Pi Coding Agent** provides high session continuity via extension hooks (`tool_call`, `tool_result`, `session_start`, and `session_before_compact`). **Codex CLI** has MCP tools today, but hook-based session tracking is pending upstream dispatch (codex_hooks Stage::UnderDevelopment, [openai/codex#16685](https://github.com/openai/codex/issues/16685)). **Kiro** has pre/post tool hooks but no SessionStart/agentSpawn restore. **Antigravity** and **Zed** have no hook support, so session tracking is not available there.
 
 <details>
 <summary><strong>What gets captured</strong></summary>
@@ -896,12 +896,12 @@ Detailed event data is also indexed into FTS5 for on-demand retrieval via `searc
 | Feature | Claude Code | Gemini CLI | VS Code Copilot | Cursor | OpenCode | KiloCode | OpenClaw | Codex CLI | Antigravity | Kiro | Zed | Pi |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | MCP Server | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| PreToolUse Hook | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | Yes (extension) |
-| PostToolUse Hook | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | Yes (extension) |
-| SessionStart Hook | Yes | Yes | Yes | -- | -- | -- | Plugin | Yes | -- | -- | -- | Yes (extension) |
+| PreToolUse Hook | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Pending | -- | Yes | -- | Yes (extension) |
+| PostToolUse Hook | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Pending | -- | Yes | -- | Yes (extension) |
+| SessionStart Hook | Yes | Yes | Yes | -- | -- | -- | Plugin | Pending | -- | -- | -- | Yes (extension) |
 | PreCompact Hook | Yes | Yes | Yes | -- | Plugin | Plugin | Plugin | -- | -- | -- | -- | Yes (extension) |
-| Can Modify Args | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | -- | -- | Yes (extension) |
-| Can Block Tools | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Yes | -- | Yes | -- | Yes (extension) |
+| Can Modify Args | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Pending | -- | -- | -- | Yes (extension) |
+| Can Block Tools | Yes | Yes | Yes | Yes | Plugin | Plugin | Plugin | Pending | -- | Yes | -- | Yes (extension) |
 | Utility Commands (ctx) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes (/ctx-stats, /ctx-doctor) |
 | Slash Commands | Yes | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
 | Plugin Marketplace | Yes | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
@@ -912,7 +912,7 @@ Detailed event data is also indexed into FTS5 for on-demand retrieval via `searc
 >
 > **OpenClaw** runs context-mode as a native gateway plugin targeting Pi Agent sessions. Hooks register via `api.on()` (tool/lifecycle) and `api.registerHook()` (commands). All tool interception and compaction hooks are supported. See [`docs/adapters/openclaw.md`](docs/adapters/openclaw.md).
 >
-> **Codex CLI** hooks are implemented but dispatch is not yet active (`codex_hooks` is `Stage::UnderDevelopment`). MCP tools work. Hook scripts are ready and will activate once Codex enables dispatch ([openai/codex#16685](https://github.com/openai/codex/issues/16685)). PreToolUse supports `permissionDecision: "deny"` only — `additionalContext` is not supported in PreToolUse (context injection works via PostToolUse and SessionStart instead; the codex formatter handles this automatically). See the Codex install section for setup. **Antigravity** and **Zed** do not support hooks. They rely solely on manually-copied routing instruction files (`AGENTS.md` / `GEMINI.md`) for enforcement (~60% compliance). See each platform's install section for copy instructions. Antigravity and Zed are auto-detected via MCP protocol handshake — no manual platform configuration needed.
+> **Codex CLI** has MCP support today. Hook dispatch is not active in Codex sessions yet (`codex_hooks` is `Stage::UnderDevelopment`), so context-mode treats hook behavior as pending and relies on `AGENTS.md` routing instructions until upstream dispatch lands ([openai/codex#16685](https://github.com/openai/codex/issues/16685)). **Antigravity** and **Zed** do not support hooks. They rely solely on manually-copied routing instruction files (`AGENTS.md` / `GEMINI.md`) for enforcement (~60% compliance). See each platform's install section for copy instructions. Antigravity and Zed are auto-detected via MCP protocol handshake — no manual platform configuration needed.
 >
 > **Kiro** supports native `preToolUse` and `postToolUse` hooks for routing enforcement and tool event capture. `agentSpawn` (SessionStart equivalent) and `stop` are not yet wired. Requires manually copying `KIRO.md` to your project root. Kiro is auto-detected via MCP protocol handshake (`clientInfo.name`).
 >
@@ -922,7 +922,7 @@ Detailed event data is also indexed into FTS5 for on-demand retrieval via `searc
 
 Hooks intercept tool calls programmatically — they can block dangerous commands and redirect them to the sandbox before execution. Instruction files guide the model via prompt instructions but cannot block anything. **Always enable hooks where supported.**
 
-> **Note:** Routing instruction files were previously auto-written to project directories on first session start. This was disabled to prevent git tree pollution ([#158](https://github.com/mksglu/context-mode/issues/158), [#164](https://github.com/mksglu/context-mode/issues/164)). Hook-capable platforms (Claude Code, Gemini CLI, VS Code Copilot, Cursor, OpenCode, OpenClaw, Codex CLI) inject routing via hooks and need no file. Non-hook platforms (Zed, Kiro, Antigravity) require a one-time manual copy — see each platform's install section.
+> **Note:** Routing instruction files were previously auto-written to project directories on first session start. This was disabled to prevent git tree pollution ([#158](https://github.com/mksglu/context-mode/issues/158), [#164](https://github.com/mksglu/context-mode/issues/164)). Hook-capable platforms (Claude Code, Gemini CLI, VS Code Copilot, Cursor, OpenCode, OpenClaw, Kiro, Pi) can enforce routing via hooks or plugins. Codex CLI, Antigravity, and Zed require routing instruction files until hook support is available.
 
 | Platform | Hooks | Instruction File | With Hooks | Without Hooks |
 |---|:---:|---|:---:|:---:|
@@ -932,7 +932,7 @@ Hooks intercept tool calls programmatically — they can block dangerous command
 | Cursor | Yes | [`context-mode.mdc`](configs/cursor/context-mode.mdc) | **~98% saved** | ~60% saved |
 | OpenCode | Plugin | [`AGENTS.md`](configs/opencode/AGENTS.md) | **~98% saved** | ~60% saved |
 | OpenClaw | Plugin | [`AGENTS.md`](configs/openclaw/AGENTS.md) | **~98% saved** | ~60% saved |
-| Codex CLI | Yes | [`AGENTS.md`](configs/codex/AGENTS.md) | **~98% saved** | ~60% saved |
+| Codex CLI | Pending | [`AGENTS.md`](configs/codex/AGENTS.md) | -- | ~60% saved |
 | Antigravity | -- | [`GEMINI.md`](configs/antigravity/GEMINI.md) | -- | ~60% saved |
 | Kiro | Yes | [`KIRO.md`](configs/kiro/KIRO.md) | **~98% saved** | ~60% saved |
 | Zed | -- | [`AGENTS.md`](configs/zed/AGENTS.md) | -- | ~60% saved |
@@ -978,9 +978,8 @@ Works on **all platforms**. On Claude Code, slash commands (`/ctx-stats`, `/ctx-
 | Analytics CSV (500 rows) | 85.5 KB | 222 B | 100% |
 | Git log (153 commits) | 11.6 KB | 107 B | 99% |
 | Test output (30 suites) | 6.0 KB | 337 B | 95% |
-| Repo research (subagent) | 986 KB | 62 KB | 94% |
 
-Over a full session: 315 KB of raw output becomes 5.4 KB. Session time extends from ~30 minutes to ~3 hours.
+Over the structured-output benchmark subtotal: 315 KB of raw output becomes 5.5 KB. Full-session impact depends on which tools route through context-mode and which platforms have active hooks.
 
 [Full benchmark data with 21 scenarios →](BENCHMARK.md)
 
@@ -988,7 +987,7 @@ Over a full session: 315 KB of raw output becomes 5.4 KB. Session time extends f
 
 These prompts work out of the box. Run `/context-mode:ctx-stats` after each to see the savings.
 
-**Deep repo research** — 5 calls, 62 KB context (raw: 986 KB, 94% saved)
+**Deep repo research** — use batch execution plus indexed search to keep large intermediate outputs out of the chat
 ```
 Research https://github.com/modelcontextprotocol/servers — architecture, tech stack,
 top contributors, open issues, and recent activity. Then run /context-mode:ctx-stats.
@@ -1032,13 +1031,13 @@ with tasks, files, and decisions intact — no re-prompting needed.
 
 Context Mode is not a CLI output filter or a cloud analytics dashboard. It operates at the MCP protocol layer — raw data stays in a sandboxed subprocess and never enters your context window. Web pages, API responses, file analysis, Playwright snapshots, log files — everything is processed in complete isolation.
 
-**Nothing leaves your machine.** No telemetry, no cloud sync, no usage tracking, no account required. Your code, your prompts, your session data — all local. The SQLite databases live in your home directory and die when you're done.
+**No telemetry or cloud sync.** Your code, prompts, indexed content, and session data are stored locally in SQLite databases under your home directory. The MCP server does not make background network calls by default; explicit user actions such as `ctx_fetch_and_index`, `ctx_upgrade`, `ctx_insight` dependency installation, or setting `CONTEXT_MODE_CHECK_LATEST=1` can still access the network.
 
 This is a deliberate architectural choice, not a missing feature. Context optimization should happen at the source, not in a dashboard behind a per-seat subscription. Privacy-first is our philosophy — and every design decision follows from it. [License →](#license)
 
 ## Security
 
-Context Mode enforces the same permission rules you already use — but extends them to the MCP sandbox. If you block `sudo`, it's also blocked inside `ctx_execute`, `ctx_execute_file`, and `ctx_batch_execute`.
+Context Mode enforces deny rules from the same permission format you already use and extends those deny checks to the MCP sandbox. If you block `sudo`, it is also denied inside `ctx_execute`, `ctx_execute_file`, and `ctx_batch_execute`.
 
 **Zero setup required.** If you haven't configured any permissions, nothing changes. This only activates when you add rules.
 

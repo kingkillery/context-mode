@@ -4,13 +4,14 @@ This document provides a comprehensive comparison of all platforms supported by 
 
 ## Overview
 
-context-mode supports eight platforms across three hook paradigms:
+context-mode supports the platforms listed in the README. This document focuses on the core adapter matrix and currently documents these paradigms:
 
 | Paradigm | Platforms |
 |----------|-----------|
-| **JSON stdin/stdout** | Claude Code, Gemini CLI, VS Code Copilot, Cursor, Codex CLI |
-| **TS Plugin** | OpenCode |
-| **MCP-only** | Antigravity, Kiro |
+| **JSON stdin/stdout** | Claude Code, Gemini CLI, VS Code Copilot, Cursor, Kiro |
+| **TS Plugin** | OpenCode, KiloCode |
+| **Native gateway / extension** | OpenClaw, Pi |
+| **MCP-only / hooks pending** | Codex CLI, Antigravity, Zed |
 
 The MCP server layer is 100% portable and needs no adapter. Only the hook layer requires platform-specific adapters.
 
@@ -68,7 +69,7 @@ This puts the `context-mode` binary in PATH, which is required for:
 
 **Status:** Fully supported (primary platform)
 
-**Hook Paradigm:** JSON stdin/stdout
+**Hook Paradigm:** MCP-only today; JSON stdin/stdout hooks are pending
 
 Claude Code is the primary platform for context-mode. All hooks communicate via JSON on stdin/stdout. The adapter reads raw JSON input, normalizes it into platform-agnostic events, and formats responses back into Claude Code's expected output format.
 
@@ -180,11 +181,11 @@ OpenCode uses a TypeScript plugin paradigm instead of JSON stdin/stdout. Hooks a
 
 ### Codex CLI
 
-**Status:** Supported (MCP active, hooks ready — waiting for upstream dispatch)
+**Status:** Supported for MCP; hooks pending upstream dispatch
 
-**Hook Paradigm:** JSON stdin/stdout
+**Hook Paradigm:** MCP-only today; JSON stdin/stdout hooks are pending
 
-Codex CLI's Rust backend (codex-rs) includes a full hook system with 5 events, using the same JSON stdin/stdout wire protocol as Claude Code. Hooks are configured via `hooks.json`.
+Codex CLI has MCP support today. Its hook dispatch path is still under development upstream, so context-mode relies on MCP tools plus routing instructions until Codex fires hook events in real sessions.
 
 **Hook Names:**
 - `PreToolUse` -- fires before a tool is executed
@@ -193,14 +194,14 @@ Codex CLI's Rust backend (codex-rs) includes a full hook system with 5 events, u
 - `UserPromptSubmit` -- fires when user submits a prompt
 - `Stop` -- fires when agent turn ends (can continue with followup)
 
-**Blocking:** `permissionDecision: "deny"` in hookSpecificOutput, or exit code 2
-**Arg Modification:** NOT supported (updatedInput returns error)
-**Output Modification:** NOT supported (updatedMCPToolOutput returns error)
-**Context Injection:** `additionalContext` in hookSpecificOutput (PostToolUse, SessionStart only). PreToolUse does NOT support `additionalContext` — the codex formatter handles this automatically (deny works, context/modify/ask responses are dropped).
+**Blocking:** Pending until Codex hook dispatch is active.
+**Arg Modification:** Pending until Codex hook dispatch is active.
+**Output Modification:** Pending until Codex hook dispatch is active.
+**Context Injection:** Pending until Codex hook dispatch is active.
 
 **Configuration:**
-- Hook config: `~/.codex/hooks.json` (JSON format, same structure as Claude Code)
 - MCP config: `~/.codex/config.toml` (TOML format, `[mcp_servers]` section)
+- Routing instructions: `configs/codex/AGENTS.md`
 
 **Hook Commands:**
 ```
@@ -262,11 +263,11 @@ Google Antigravity is an AI-powered IDE by Google/DeepMind. It shares the `~/.ge
 
 ### Kiro
 
-**Status:** MCP-only (hooks planned for Phase 2)
+**Status:** Partial hooks plus MCP
 
-**Hook Paradigm:** MCP-only
+**Hook Paradigm:** JSON stdin/stdout for pre/post tool hooks
 
-Kiro is an AWS agentic IDE and CLI. It supports MCP servers via `~/.kiro/settings/mcp.json` using the standard `mcpServers` JSON format. Hook support for Kiro CLI (JSON stdin + exit code 2 blocking, `preToolUse`/`postToolUse`) is verified in the Kiro CLI docs but not yet implemented in context-mode — planned for Phase 2.
+Kiro is an AWS agentic IDE and CLI. It supports MCP servers via `~/.kiro/settings/mcp.json` using the standard `mcpServers` JSON format. context-mode includes Kiro `preToolUse` and `postToolUse` hook adapters for routing enforcement and event capture. Kiro does not currently provide the SessionStart/agentSpawn coverage needed for full session restore.
 
 **Detection:**
 - Auto-detected via MCP protocol handshake (`clientInfo.name: "Kiro CLI"`)
@@ -276,12 +277,12 @@ Kiro is an AWS agentic IDE and CLI. It supports MCP servers via `~/.kiro/setting
 - Project: `.kiro/settings/mcp.json`
 
 **Routing Instructions:**
-- `KIRO.md` written at project root on first MCP server startup
+- Copy `configs/kiro/KIRO.md` into the project when startup routing instructions are needed.
 
-**Hook System (Phase 2 — not yet implemented):**
+**Hook System:**
 - Kiro CLI supports `preToolUse`/`postToolUse` hooks via JSON stdin
 - Blocking: exit code 2 (similar to Gemini CLI pattern)
-- Hook format verified in Kiro CLI docs but context-mode adapter is not yet built
+- `agentSpawn`/SessionStart and stop hooks are not wired, so compaction restore is not available.
 
 **Built-in Tools:**
 - `fs_read` / `read`, `fs_write` / `write`, `execute_bash` / `shell`, `use_aws` / `aws`
@@ -296,7 +297,7 @@ Kiro is an AWS agentic IDE and CLI. It supports MCP servers via `~/.kiro/setting
 - Can inject session context: --
 
 **Known Issues / Caveats:**
-- Hook adapter not yet implemented — Phase 2 work item
+- SessionStart/agentSpawn restore is not implemented yet.
 - Kiro IDE hooks use a UI-based "Run Command" shell action; stdin format unverified
 
 **Sources:**
@@ -503,11 +504,11 @@ The dispatcher resolves the hook script relative to the installed package and dy
 | `gemini-cli` | `beforetool`, `aftertool`, `precompress`, `sessionstart` |
 | `vscode-copilot` | `pretooluse`, `posttooluse`, `precompact`, `sessionstart` |
 | `cursor` | `pretooluse`, `posttooluse`, `stop` |
-| `codex` | `pretooluse`, `posttooluse`, `sessionstart` |
+| `codex` | MCP only today; hook dispatch pending upstream |
 
 † Codex hook dispatches are ready but Codex CLI doesn't fire hooks yet (Stage::UnderDevelopment).
 
-OpenCode uses a TS plugin paradigm (no command dispatcher). Antigravity and Kiro have no hook support.
+OpenCode uses a TS plugin paradigm (no command dispatcher). Antigravity and Zed have no hook support. Kiro has pre/post tool hooks only.
 
 ---
 
