@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, win32 } from "node:path";
 
 export type Language =
   | "javascript"
@@ -88,7 +88,8 @@ function bunCommand(): string {
 
 function isBunCommand(cmd: string): boolean {
   const name = basename(cmd).toLowerCase();
-  return name === "bun" || name === "bun.exe";
+  const winName = win32.basename(cmd).toLowerCase();
+  return name === "bun" || name === "bun.exe" || winName === "bun" || winName === "bun.exe";
 }
 
 /**
