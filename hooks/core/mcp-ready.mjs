@@ -15,17 +15,27 @@ export function sentinelPath() {
   return resolve(tmpdir(), `context-mode-mcp-ready-${process.ppid}`);
 }
 
+function sentinelPaths() {
+  return [
+    sentinelPath(),
+    resolve(tmpdir(), `context-mode-mcp-ready-${process.pid}`),
+  ];
+}
+
 /**
  * Check if MCP server is alive by reading sentinel PID and probing it.
  * Handles stale sentinels from crashed servers (SIGKILL, OOM) — if the
  * PID in the sentinel is dead, returns false so hooks allow fallback.
  */
 export function isMCPReady() {
-  try {
-    const pid = parseInt(readFileSync(sentinelPath(), "utf8"), 10);
-    process.kill(pid, 0); // throws if process doesn't exist
-    return true;
-  } catch {
-    return false;
+  for (const path of sentinelPaths()) {
+    try {
+      const pid = parseInt(readFileSync(path, "utf8"), 10);
+      process.kill(pid, 0); // throws if process doesn't exist
+      return true;
+    } catch {
+      // Try the next sentinel path.
+    }
   }
+  return false;
 }

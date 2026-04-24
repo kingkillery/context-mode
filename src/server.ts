@@ -2308,8 +2308,11 @@ async function main() {
     }
   } catch { /* best effort — _detectedAdapter stays null, falls back to .claude */ }
 
-  // Non-blocking version check — result stored for trackResponse warnings
-  fetchLatestVersion().then(v => { if (v !== "unknown") _latestVersion = v; });
+  // No automatic network calls on MCP startup. Users can run ctx_doctor,
+  // ctx_upgrade, or the CLI when they want an explicit version/network check.
+  if (process.env.CONTEXT_MODE_CHECK_LATEST === "1") {
+    fetchLatestVersion().then(v => { if (v !== "unknown") _latestVersion = v; });
+  }
 
   console.error(`Context Mode MCP server v${VERSION} running on stdio`);
   console.error(`Detected runtimes:\n${getRuntimeSummary(runtimes)}`);

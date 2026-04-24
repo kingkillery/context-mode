@@ -9,7 +9,7 @@
 |--------|-------|
 | Total scenarios | 21 |
 | Tools benchmarked | `ctx_execute_file` (summarize) + `ctx_index`/`ctx_search` (knowledge retrieval) |
-| Smart truncation | Head + tail preservation (60/40 split) |
+| Output limiting | Byte-safe caps and query-centered snippets |
 | Total raw data processed | 376 KB |
 | Total context consumed | 16.5 KB |
 | Overall context savings | **96%** |
@@ -74,35 +74,26 @@
 - `ctx_execute_file` on React docs: `"5 code blocks, 3 sections about cleanup"` → **useless for coding**
 - `ctx_index + ctx_search` on React docs: returns the full `useEffect(() => { ... }, [deps])` block → **actually useful**
 
-## Part 3: Smart Truncation
+## Part 3: Output Limiting
 
-*When output exceeds the limit, context-mode keeps the first 60% + last 40% of lines — preserving both initial context and final error messages.*
+*When output exceeds the limit, current context-mode paths either index the large output and return a searchable pointer, return query-centered snippets, or apply byte-safe caps for display fields.*
 
-| Before (v0.2) | After (v0.3) |
+| Older behavior | Current behavior |
 |---|---|
-| Blindly keeps first N bytes | Keeps head (60%) + tail (40%) |
-| Cuts mid-line, corrupts UTF-8 | Snaps to line boundaries |
-| Error messages at end: **LOST** | Error messages at end: **PRESERVED** |
-| `"... [output truncated]"` | `"[47 lines / 3.2KB truncated — showing first 12 + last 8 lines]"` |
+| Blindly returned raw output | Large stdout is indexed and searched on demand |
+| Could cut unsafe byte boundaries | Display fields use UTF-8-safe byte caps |
+| Query misses important section | Search snippets center around matched terms |
 
 ### Example
 
 ```
-line 0: data initialization
-line 1: loading config
-line 2: starting server
-...
-
-... [47 lines / 3.2KB truncated — showing first 12 + last 8 lines] ...
-
-line 92: connection timeout
-line 93: retry attempt 3 failed
-line 94: FATAL: database unreachable
-line 95: Stack trace: Error at connect()
-line 96: exit code: 1
+Command produces 80 KB of logs
+  → output is indexed into FTS5
+  → response returns source name + section inventory
+  → ctx_search("database unreachable") returns matched snippets
 ```
 
-The LLM can now see **both** the setup context (head) and the actual error (tail).
+The LLM can retrieve the relevant section without carrying the whole log in context.
 
 ## Context Window Impact
 
@@ -137,13 +128,11 @@ Claude's context window: **200,000 tokens**
 ## How to Reproduce
 
 ```bash
-# Run individual test suites
-npm run test              # Executor tests
-npm run test:store        # FTS5 BM25 store tests
-npm run test:ecosystem    # Ecosystem benchmark
+# Run all unit tests
+npm test
 
-# Run all tests
-npm run test:all
+# Run benchmark script
+npm run benchmark
 
 # Live benchmark (requires Context7 fixture)
 npx tsx tests/live-benchmark.ts

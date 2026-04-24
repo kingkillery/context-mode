@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 export type Language =
   | "javascript"
@@ -47,7 +48,28 @@ function commandExists(cmd: string): boolean {
   }
 }
 
+function whereCommand(cmd: string): string[] {
+  try {
+    const result = execSync(`where ${cmd}`, { encoding: "utf-8", stdio: "pipe" });
+    return result.trim().split(/\r?\n/).map(p => p.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function resolveWindowsBun(): string | null {
+  for (const candidate of whereCommand("bun")) {
+    const lower = candidate.toLowerCase();
+    if (lower.endsWith(".exe")) return candidate;
+
+    const npmShimExe = join(dirname(candidate), "node_modules", "bun", "bin", "bun.exe");
+    if (existsSync(npmShimExe)) return npmShimExe;
+  }
+  return null;
+}
+
 function bunExists(): boolean {
+  if (isWindows) return resolveWindowsBun() !== null;
   if (commandExists("bun")) return true;
   // Bun installs to ~/.bun/bin which may not be in PATH in MCP server environments
   if (!isWindows) {
@@ -58,9 +80,15 @@ function bunExists(): boolean {
 }
 
 function bunCommand(): string {
+  if (isWindows) return resolveWindowsBun() ?? "bun";
   if (commandExists("bun")) return "bun";
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   return `${home}/.bun/bin/bun`;
+}
+
+function isBunCommand(cmd: string): boolean {
+  const name = basename(cmd).toLowerCase();
+  return name === "bun" || name === "bun.exe";
 }
 
 /**
@@ -150,7 +178,7 @@ export function hasBunRuntime(): boolean {
 
 export function getRuntimeSummary(runtimes: RuntimeMap): string {
   const lines: string[] = [];
-  const bunPreferred = runtimes.javascript?.endsWith("bun") ?? false;
+  const bunPreferred = isBunCommand(runtimes.javascript);
 
   lines.push(
     `  JavaScript: ${runtimes.javascript} (${getVersion(runtimes.javascript)})${bunPreferred ? " ⚡" : ""}`,
@@ -235,7 +263,7 @@ export function buildCommand(
 ): string[] {
   switch (language) {
     case "javascript":
-      return runtimes.javascript.endsWith("bun")
+      return isBunCommand(runtimes.javascript)
         ? [runtimes.javascript, "run", filePath]
         : [runtimes.javascript, filePath];
 
@@ -245,7 +273,7 @@ export function buildCommand(
           "No TypeScript runtime available. Install one of: bun (recommended), tsx (npm i -g tsx), or ts-node.",
         );
       }
-      if (runtimes.typescript?.endsWith("bun")) return [runtimes.typescript, "run", filePath];
+      if (isBunCommand(runtimes.typescript)) return [runtimes.typescript, "run", filePath];
       if (runtimes.typescript === "tsx") return ["tsx", filePath];
       return ["ts-node", filePath];
 
