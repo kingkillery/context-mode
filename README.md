@@ -2,7 +2,7 @@
 
 **The other half of the context problem.**
 
-[![users](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fcontext-mode%40main%2Fstats.json&query=%24.message&label=users&color=brightgreen)](https://www.npmjs.com/package/context-mode) [![npm](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fcontext-mode%40main%2Fstats.json&query=%24.npm&label=npm&color=blue)](https://www.npmjs.com/package/context-mode) [![marketplace](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fcontext-mode%40main%2Fstats.json&query=%24.marketplace&label=marketplace&color=blue)](https://github.com/mksglu/context-mode) [![GitHub stars](https://img.shields.io/github/stars/mksglu/context-mode?style=flat&color=yellow)](https://github.com/mksglu/context-mode/stargazers) [![GitHub forks](https://img.shields.io/github/forks/mksglu/context-mode?style=flat&color=blue)](https://github.com/mksglu/context-mode/network/members) [![Last commit](https://img.shields.io/github/last-commit/mksglu/context-mode?color=green)](https://github.com/mksglu/context-mode/commits) [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](LICENSE)
+[![users](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fcontext-mode%40main%2Fstats.json&query=%24.message&label=users&color=brightgreen)](https://www.npmjs.com/package/pk-context-mode) [![npm](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fcontext-mode%40main%2Fstats.json&query=%24.npm&label=npm&color=blue)](https://www.npmjs.com/package/pk-context-mode) [![marketplace](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fmksglu%2Fcontext-mode%40main%2Fstats.json&query=%24.marketplace&label=marketplace&color=blue)](https://github.com/mksglu/context-mode) [![GitHub stars](https://img.shields.io/github/stars/mksglu/context-mode?style=flat&color=yellow)](https://github.com/mksglu/context-mode/stargazers) [![GitHub forks](https://img.shields.io/github/forks/mksglu/context-mode?style=flat&color=blue)](https://github.com/mksglu/context-mode/network/members) [![Last commit](https://img.shields.io/github/last-commit/mksglu/context-mode?color=green)](https://github.com/mksglu/context-mode/commits) [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/1478479412700909750?label=Discord&logo=discord&color=5865f2)](https://discord.gg/DCN9jUgN5v)
 [![Hacker News #1](https://img.shields.io/badge/Hacker%20News-%231%20%E2%80%A2%20570%2B%20points-ff6600?logo=ycombinator&logoColor=white)](https://news.ycombinator.com/item?id=47193064)
 
@@ -88,7 +88,7 @@ All checks should show `[x]`. The doctor validates runtimes, hooks, FTS5, and pl
 <summary>Alternative — MCP-only install (no hooks or slash commands)</summary>
 
 ```bash
-claude mcp add context-mode -- npx -y context-mode
+claude mcp add context-mode -- npx -y pk-context-mode
 ```
 
 This gives you the 6 sandbox tools without automatic routing. The model can still use them — it just won't be nudged to prefer them over raw Bash/Read/WebFetch. Good for trying it out before committing to the full plugin.
@@ -107,7 +107,7 @@ This gives you the 6 sandbox tools without automatic routing. The model can stil
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add the following to `~/.gemini/settings.json`. This single file registers the MCP server and all four hooks:
@@ -176,7 +176,7 @@ Full config reference: [`configs/gemini-cli/settings.json`](configs/gemini-cli/s
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Create `.vscode/mcp.json` in your project root:
@@ -229,7 +229,7 @@ Full hook config including PreCompact: [`configs/vscode-copilot/hooks.json`](con
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Create `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` for global):
@@ -301,7 +301,7 @@ Full configs: [`configs/cursor/hooks.json`](configs/cursor/hooks.json) | [`confi
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add to `opencode.json` in your project root (or `~/.config/opencode/opencode.json` for global):
@@ -351,7 +351,7 @@ Full configs: [`configs/opencode/opencode.json`](configs/opencode/opencode.json)
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add to `kilo.json` in your project root (or `~/.config/kilo/kilo.json` for global):
@@ -436,7 +436,7 @@ Full documentation: [`docs/adapters/openclaw.md`](docs/adapters/openclaw.md)
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add to `~/.codex/config.toml`:
@@ -499,7 +499,7 @@ Full documentation: [`docs/adapters/openclaw.md`](docs/adapters/openclaw.md)
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add to `~/.gemini/antigravity/mcp_config.json`:
@@ -540,7 +540,7 @@ Full configs: [`configs/antigravity/mcp_config.json`](configs/antigravity/mcp_co
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add to `.kiro/settings/mcp.json` in your project (or `~/.kiro/settings/mcp.json` for global):
@@ -598,7 +598,7 @@ Full configs: [`configs/kiro/mcp.json`](configs/kiro/mcp.json) | [`configs/kiro/
 1. Install context-mode globally:
 
    ```bash
-   npm install -g context-mode
+   npm install -g pk-context-mode
    ```
 
 2. Add to `~/.config/zed/settings.json` (Windows: `%APPDATA%\Zed\settings.json`):
@@ -685,7 +685,7 @@ On older glibc systems (CentOS 7/8, RHEL 8, Debian 10), prebuilt binaries don't 
 
 ```bash
 dnf install -y gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ make python3 python3-setuptools
-scl enable gcc-toolset-10 'npm install -g context-mode'
+scl enable gcc-toolset-10 'npm install -g pk-context-mode'
 ```
 
 **CentOS 7 / RHEL 7** (glibc 2.17):
@@ -694,7 +694,7 @@ scl enable gcc-toolset-10 'npm install -g context-mode'
 yum install -y centos-release-scl
 yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ make python3
 pip3 install setuptools
-scl enable devtoolset-10 'npm install -g context-mode'
+scl enable devtoolset-10 'npm install -g pk-context-mode'
 ```
 
 **Alpine Linux:**
@@ -703,7 +703,7 @@ Alpine prebuilt binaries (musl) are available in better-sqlite3 v12.8.0+. With t
 
 ```bash
 apk add build-base python3 py3-setuptools
-npm install -g context-mode
+npm install -g pk-context-mode
 ```
 
 </details>
