@@ -725,7 +725,7 @@ describe("Bin entry uses cli.bundle.mjs", () => {
   const pkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf-8"));
 
   it("package.json bin points to cli.bundle.mjs, not build/cli.js", () => {
-    expect(pkg.bin["context-mode"]).toBe("./cli.bundle.mjs");
+    expect(pkg.bin["context-mode"]).toBe("cli.bundle.mjs");
   });
 
   it("package.json exports ./cli points to cli.bundle.mjs", () => {
